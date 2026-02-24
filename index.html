@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeilP2P | Confidential Finance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Space Grotesk', 'sans-serif'],
+              display: ['Syne', 'sans-serif'],
+            },
+            letterSpacing: {
+              mysterious: '0.15em',
+            }
+          }
+        }
+      }
+    </script>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.42.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+<style>
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    cursor: default;
+  }
+  .font-display {
+    font-family: 'Syne', sans-serif;
+  }
+  .glow-text {
+    text-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+  }
+  .mysterious-border {
+    border-image: linear-gradient(to right, #1e293b, #334155, #1e293b) 1;
+  }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-50 min-h-screen">
+    <div id="root"></div>
+</body>
+</html>

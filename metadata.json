@@ -1,0 +1,7 @@
+{
+  "name": "VeilP2P: Confidential Payments",
+  "description": "A production-grade architecture and UI for confidential USDT transfers using Zama fhEVM and VeilP2P protocol. Privacy by design.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
