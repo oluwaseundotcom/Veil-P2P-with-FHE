@@ -31,7 +31,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
-  const [balance, setBalance] = useState<string>("4,250.00 cUSDT");
+  const [balance, setBalance] = useState<number>(0);
   const [isVaultPrivate, setIsVaultPrivate] = useState(false);
   const [activeTab, setActiveTab] = useState<'send' | 'withdraw'>('send');
   const [isBridging, setIsBridging] = useState(false);
@@ -50,24 +50,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
   const [fheExplain, setFheExplain] = useState("");
 
   useEffect(() => {
-    fetchTransactions();
+    fetchUserData();
   }, []);
 
-  const fetchTransactions = async () => {
+  const fetchUserData = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    // Fetch Balance
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('balance')
+      .eq('id', user.id)
+      .single();
+    
+    if (profile) setBalance(Number(profile.balance));
+
+    // Fetch Transactions
+    const { data: txs, error } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching transactions:', error);
-    } else if (data) {
-      setHistory(data.map((tx: any) => ({
+    if (txs) {
+      setHistory(txs.map((tx: any) => ({
         id: tx.id,
         type: tx.type,
         amount: tx.amount,
@@ -108,7 +116,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
   const handleTogglePrivacy = async () => {
     if (!isVaultPrivate) {
       setIsVaultPrivate(true);
-      setBalance("••••••••");
       if (!fheExplain) {
         const resp = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
@@ -118,7 +125,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
       }
     } else {
       setIsVaultPrivate(false);
-      setBalance("4,250.00 cUSDT");
     }
   };
 
@@ -134,16 +140,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    const amountNum = Number(txData.amount);
+    if (amountNum > balance) {
+      alert("Insufficient balance");
+      return;
+    }
+
     await simulatePasskey();
     setIsProcessing(true);
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // 1. Subtract from sender
+    const newBalance = balance - amountNum;
+    await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
+    setBalance(newBalance);
+
+    // 2. Add to recipient (if they exist)
+    const recipientHandle = txData.to.replace('@', '');
+    const { data: recipientProfile } = await supabase
+      .from('profiles')
+      .select('id, balance')
+      .eq('username', recipientHandle)
+      .single();
+
+    if (recipientProfile) {
+      await supabase
+        .from('profiles')
+        .update({ balance: Number(recipientProfile.balance) + amountNum })
+        .eq('id', recipientProfile.id);
+    }
+
+    // 3. Record Transaction
     const newTxData = {
       user_id: user.id,
       type: 'Out',
-      amount: 'Encrypted',
+      amount: txData.amount,
       recipient: txData.to,
       memo: 'Encrypted',
       status: 'Sending'
@@ -154,20 +187,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
       .insert([newTxData])
       .select();
 
-    if (error) {
-      console.error('Error saving transaction:', error);
-    } else if (data) {
+    if (data) {
       const insertedTx = data[0];
-      const newTx: Transaction = { 
+      setHistory(prev => [{ 
         id: insertedTx.id, 
         type: insertedTx.type, 
         amount: insertedTx.amount, 
         to: insertedTx.recipient, 
         memo: insertedTx.memo, 
         status: insertedTx.status 
-      };
-      
-      setHistory(prev => [newTx, ...prev]);
+      }, ...prev]);
       startStatusFlow(insertedTx.id);
     }
     
@@ -179,40 +208,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
+    const amountNum = Number(withdrawData.amount);
+    if (amountNum > balance) {
+      alert("Insufficient balance");
+      return;
+    }
+
     await simulatePasskey();
     setIsProcessing(true);
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Subtract from balance
+    const newBalance = balance - amountNum;
+    await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
+    setBalance(newBalance);
+
     const newTxData = {
       user_id: user.id,
       type: 'Withdraw',
-      amount: 'Encrypted',
+      amount: withdrawData.amount,
       recipient: withdrawData.bank,
-      memo: 'NGN Bank Transfer',
+      memo: 'NGN Bank Settlement',
       status: 'Sending'
     };
 
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert([newTxData])
-      .select();
+    const { data } = await supabase.from('transactions').insert([newTxData]).select();
 
-    if (error) {
-      console.error('Error saving transaction:', error);
-    } else if (data) {
+    if (data) {
       const insertedTx = data[0];
-      const newTx: Transaction = { 
+      setHistory(prev => [{ 
         id: insertedTx.id, 
         type: insertedTx.type, 
         amount: insertedTx.amount, 
         to: insertedTx.recipient, 
         memo: insertedTx.memo, 
         status: insertedTx.status 
-      };
-      
-      setHistory(prev => [newTx, ...prev]);
+      }, ...prev]);
       startStatusFlow(insertedTx.id);
     }
 
@@ -236,6 +269,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Update Balance
+      const newBalance = balance + 100;
+      await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
+      setBalance(newBalance);
 
       const newTxData = {
         user_id: user.id,
@@ -393,7 +431,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
           <div className="flex justify-between items-start mb-10">
             <div>
               <p className="text-slate-500 text-[10px] font-bold uppercase tracking-mysterious mb-2">SCA Vault Balance</p>
-              <h2 className="text-4xl font-display font-bold tracking-tight text-white glow-text">{balance}</h2>
+              <h2 className="text-4xl font-display font-bold tracking-tight text-white glow-text">
+                {isVaultPrivate ? "••••••••" : `${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })} cUSDT`}
+              </h2>
             </div>
             <div className="bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full text-[10px] border border-cyan-500/20 font-bold tracking-widest">
               cUSDT
