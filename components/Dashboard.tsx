@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
+import { supabase } from '../services/supabase';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -36,18 +37,53 @@ export const Dashboard: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [bridgeCopied, setBridgeCopied] = useState(false);
   
-  const [history, setHistory] = useState<Transaction[]>([
-    { id: 1, type: 'In', amount: 'Encrypted', from: 'cipher.eth', memo: 'Encrypted', status: 'Completed' },
-    { id: 2, type: 'Out', amount: 'Encrypted', to: 'veil_escrow_pool', memo: 'Encrypted', status: 'Completed' },
-  ]);
+  const [history, setHistory] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [txData, setTxData] = useState({ to: '', amount: '', memo: '' });
   const [withdrawData, setWithdrawData] = useState({ bank: '', accountNumber: '', amount: '' });
   const [isProcessing, setIsProcessing] = useState(false);
   const [fheExplain, setFheExplain] = useState("");
 
-  const updateTxStatus = (id: number, status: string) => {
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching transactions:', error);
+    } else if (data) {
+      setHistory(data.map((tx: any) => ({
+        id: tx.id,
+        type: tx.type,
+        amount: tx.amount,
+        from: tx.from_user,
+        to: tx.recipient,
+        memo: tx.memo,
+        status: tx.status
+      })));
+    }
+    setLoading(false);
+  };
+
+  const updateTxStatus = async (id: any, status: string) => {
     setHistory(prev => prev.map(tx => tx.id === id ? { ...tx, status } : tx));
+    
+    // Update in Supabase
+    await supabase
+      .from('transactions')
+      .update({ status })
+      .eq('id', id);
   };
 
   const startStatusFlow = (id: number) => {
@@ -97,18 +133,39 @@ export const Dashboard: React.FC = () => {
     await simulatePasskey();
     setIsProcessing(true);
     
-    const newId = Date.now();
-    const newTx: Transaction = { 
-      id: newId, 
-      type: 'Out', 
-      amount: 'Encrypted', 
-      to: txData.to, 
-      memo: 'Encrypted', 
-      status: 'Sending' 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const newTxData = {
+      user_id: user.id,
+      type: 'Out',
+      amount: 'Encrypted',
+      recipient: txData.to,
+      memo: 'Encrypted',
+      status: 'Sending'
     };
-    
-    setHistory(prev => [newTx, ...prev]);
-    startStatusFlow(newId);
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert([newTxData])
+      .select();
+
+    if (error) {
+      console.error('Error saving transaction:', error);
+    } else if (data) {
+      const insertedTx = data[0];
+      const newTx: Transaction = { 
+        id: insertedTx.id, 
+        type: insertedTx.type, 
+        amount: insertedTx.amount, 
+        to: insertedTx.recipient, 
+        memo: insertedTx.memo, 
+        status: insertedTx.status 
+      };
+      
+      setHistory(prev => [newTx, ...prev]);
+      startStatusFlow(insertedTx.id);
+    }
     
     setTimeout(() => {
       setTxData({ to: '', amount: '', memo: '' });
@@ -121,18 +178,39 @@ export const Dashboard: React.FC = () => {
     await simulatePasskey();
     setIsProcessing(true);
     
-    const newId = Date.now();
-    const newTx: Transaction = { 
-      id: newId, 
-      type: 'Withdraw', 
-      amount: 'Encrypted', 
-      to: withdrawData.bank, 
-      memo: 'NGN Bank Transfer', 
-      status: 'Sending' 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const newTxData = {
+      user_id: user.id,
+      type: 'Withdraw',
+      amount: 'Encrypted',
+      recipient: withdrawData.bank,
+      memo: 'NGN Bank Transfer',
+      status: 'Sending'
     };
-    
-    setHistory(prev => [newTx, ...prev]);
-    startStatusFlow(newId);
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert([newTxData])
+      .select();
+
+    if (error) {
+      console.error('Error saving transaction:', error);
+    } else if (data) {
+      const insertedTx = data[0];
+      const newTx: Transaction = { 
+        id: insertedTx.id, 
+        type: insertedTx.type, 
+        amount: insertedTx.amount, 
+        to: insertedTx.recipient, 
+        memo: insertedTx.memo, 
+        status: insertedTx.status 
+      };
+      
+      setHistory(prev => [newTx, ...prev]);
+      startStatusFlow(insertedTx.id);
+    }
 
     setTimeout(() => {
       setIsProcessing(false);
@@ -145,25 +223,46 @@ export const Dashboard: React.FC = () => {
     setBridgeStep(1);
   };
 
-  const nextBridgeStep = () => {
+  const nextBridgeStep = async () => {
     if (bridgeStep < 3) {
       setBridgeStep(bridgeStep + 1);
     } else {
       setIsBridging(false);
       setBridgeStep(0);
       
-      const newId = Date.now();
-      const newTx: Transaction = { 
-        id: newId, 
-        type: 'Bridge', 
-        amount: '100.00', 
-        from: selectedNetwork.name, 
-        memo: `USDT (${selectedNetwork.symbol}) -> cUSDT`, 
-        status: 'Sending' 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const newTxData = {
+        user_id: user.id,
+        type: 'Bridge',
+        amount: '100.00',
+        from_user: selectedNetwork.name,
+        memo: `USDT (${selectedNetwork.symbol}) -> cUSDT`,
+        status: 'Sending'
       };
-      
-      setHistory(prev => [newTx, ...prev]);
-      startStatusFlow(newId);
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([newTxData])
+        .select();
+
+      if (error) {
+        console.error('Error saving transaction:', error);
+      } else if (data) {
+        const insertedTx = data[0];
+        const newTx: Transaction = { 
+          id: insertedTx.id, 
+          type: insertedTx.type, 
+          amount: insertedTx.amount, 
+          from: insertedTx.from_user, 
+          memo: insertedTx.memo, 
+          status: insertedTx.status 
+        };
+        
+        setHistory(prev => [newTx, ...prev]);
+        startStatusFlow(insertedTx.id);
+      }
     }
   };
 
@@ -464,6 +563,7 @@ export const Dashboard: React.FC = () => {
         <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
           <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
             <h2 className="text-sm font-display font-bold text-slate-100 uppercase tracking-mysterious">Ledger Index</h2>
+            {loading && <div className="w-4 h-4 border border-indigo-500 border-t-transparent rounded-full animate-spin"></div>}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">

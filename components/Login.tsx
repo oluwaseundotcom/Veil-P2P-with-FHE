@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
+import { supabase } from '../services/supabase';
 
 interface LoginProps {
-  onLogin: (username: string) => void;
+  onLogin: () => void;
 }
 
 const VeilLogo = ({ className }: { className?: string }) => (
@@ -35,23 +36,50 @@ const VeilLogo = ({ className }: { className?: string }) => (
 );
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authStep, setAuthStep] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username) return;
+    if (!email || !password) return;
 
     setIsAuthenticating(true);
+    setError(null);
     setAuthStep(1);
 
-    // Simulate Biometric Flow
-    setTimeout(() => setAuthStep(2), 1000);
-    setTimeout(() => setAuthStep(3), 2200);
-    setTimeout(() => {
-      onLogin(username.replace('@', ''));
-    }, 3200);
+    try {
+      // Attempt to sign in
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        // If user doesn't exist, try to sign up
+        if (signInError.message.includes('Invalid login credentials')) {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+          if (signUpError) throw signUpError;
+        } else {
+          throw signInError;
+        }
+      }
+
+      setAuthStep(2);
+      setTimeout(() => setAuthStep(3), 1000);
+      setTimeout(() => {
+        onLogin();
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message);
+      setIsAuthenticating(false);
+      setAuthStep(0);
+    }
   };
 
   return (
@@ -71,21 +99,38 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <div className="bg-slate-900/40 border border-slate-800 p-10 rounded-[40px] shadow-2xl backdrop-blur-xl mysterious-border">
           {!isAuthenticating ? (
-            <form onSubmit={handleLogin} className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            <form onSubmit={handleLogin} className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
               <div className="space-y-3">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Identity Handle</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Email Identifier</label>
                 <div className="relative">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-indigo-500 font-bold">@</span>
                   <input 
-                    type="text" 
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="username" 
-                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl pl-10 pr-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium placeholder:text-slate-700"
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="agent@veil.p2p" 
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium placeholder:text-slate-700"
                     required
                   />
                 </div>
               </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Access Key</label>
+                <div className="relative">
+                  <input 
+                    type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••" 
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium placeholder:text-slate-700"
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest text-center">{error}</p>
+              )}
 
               <div className="space-y-4">
                 <button 
@@ -96,7 +141,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                 </button>
                 <p className="text-[9px] text-slate-600 text-center uppercase tracking-widest font-bold px-4 leading-relaxed">
-                  Your hardware security module will secure your FHE keys
+                  New agents will be automatically registered in the protocol
                 </p>
               </div>
             </form>
@@ -113,8 +158,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               <div className="space-y-2">
                 <p className="text-white font-display font-bold text-sm tracking-widest uppercase">
-                  {authStep === 1 && "Requesting Passkey..."}
-                  {authStep === 2 && "Verifying Biometrics..."}
+                  {authStep === 1 && "Connecting to Supabase..."}
+                  {authStep === 2 && "Verifying Credentials..."}
                   {authStep === 3 && "Vault Sync Successful"}
                 </p>
                 <div className="flex justify-center gap-1">
@@ -125,8 +170,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
               
               <p className="text-[10px] text-slate-500 font-mono italic">
-                {authStep === 1 && "Communicating with Secure Enclave..."}
-                {authStep === 2 && `Validating @${username} credential...`}
+                {authStep === 1 && "Establishing secure handshake..."}
+                {authStep === 2 && `Validating ${email} session...`}
                 {authStep === 3 && "Accessing encrypted TFHE state..."}
               </p>
             </div>
