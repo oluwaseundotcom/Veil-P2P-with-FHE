@@ -10,7 +10,13 @@ const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'architecture'>('dashboard');
   const [session, setSession] = useState<any>(null);
   const [username, setUsername] = useState("shadow_operator");
+  const [walletAddress, setWalletAddress] = useState<string>("0x0000...0000");
   const [loading, setLoading] = useState(true);
+
+  const deriveWallet = (userId: string) => {
+    const hash = userId.replace(/-/g, '');
+    return `0x${hash.substring(0, 36).padEnd(40, 'f')}`;
+  };
 
   useEffect(() => {
     // Safety timeout for loading state
@@ -23,6 +29,7 @@ const App: React.FC = () => {
       setSession(session);
       if (session?.user) {
         setUsername(session.user.email?.split('@')[0] || "shadow_operator");
+        setWalletAddress(deriveWallet(session.user.id));
       }
       setLoading(false);
       clearTimeout(timeout);
@@ -33,6 +40,7 @@ const App: React.FC = () => {
       setSession(session);
       if (session?.user) {
         setUsername(session.user.email?.split('@')[0] || "shadow_operator");
+        setWalletAddress(deriveWallet(session.user.id));
       }
       setLoading(false);
     });
@@ -67,9 +75,10 @@ const App: React.FC = () => {
       currentView={view} 
       onViewChange={setView} 
       username={username}
+      walletAddress={walletAddress}
       onLogout={handleLogout}
     >
-      {view === 'dashboard' ? <Dashboard /> : <ArchitectureDoc />}
+      {view === 'dashboard' ? <Dashboard walletAddress={walletAddress} /> : <ArchitectureDoc />}
     </Layout>
   );
 };

@@ -6,6 +6,7 @@ interface LayoutProps {
   currentView: 'dashboard' | 'architecture';
   onViewChange: (view: 'dashboard' | 'architecture') => void;
   username: string;
+  walletAddress: string;
   onLogout: () => void;
 }
 
@@ -44,13 +45,12 @@ const VeilLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, username, onLogout }) => {
-  const [account] = useState<string>("0x71C2607590022425000000000000000000004f21"); 
+export const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, username, walletAddress, onLogout }) => {
   const [network] = useState<string>("Veil Mainnet");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(account);
+    navigator.clipboard.writeText(walletAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

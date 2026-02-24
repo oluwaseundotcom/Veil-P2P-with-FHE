@@ -26,7 +26,11 @@ interface Transaction {
   status: string;
 }
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  walletAddress: string;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
   const [balance, setBalance] = useState<string>("4,250.00 cUSDT");
   const [isVaultPrivate, setIsVaultPrivate] = useState(false);
   const [activeTab, setActiveTab] = useState<'send' | 'withdraw'>('send');
@@ -405,7 +409,7 @@ export const Dashboard: React.FC = () => {
             </button>
 
             <button 
-              onClick={() => handleCopy("0x71C2607590022425000000000000000000004f21", setCopied)}
+              onClick={() => handleCopy(walletAddress, setCopied)}
               className={`w-full py-4 rounded-2xl font-bold transition-all border text-sm uppercase tracking-mysterious flex items-center justify-center gap-2 ${copied ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400' : 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 text-slate-300'}`}
             >
               {copied ? <span>✅ Copied Address</span> : <span>📋 Copy Wallet ID</span>}
