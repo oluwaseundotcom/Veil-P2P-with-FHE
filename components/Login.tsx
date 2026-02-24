@@ -52,29 +52,38 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       // Attempt to sign in
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) {
         // If user doesn't exist, try to sign up
-        if (signInError.message.includes('Invalid login credentials')) {
-          const { error: signUpError } = await supabase.auth.signUp({
+        if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('User not found')) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
             password,
           });
+          
           if (signUpError) throw signUpError;
+          
+          // If session is null, it means email confirmation is required
+          if (!signUpData.session) {
+            setError("Confirmation email sent! Please check your inbox to activate your account.");
+            setIsAuthenticating(false);
+            setAuthStep(0);
+            return;
+          }
         } else {
           throw signInError;
         }
       }
 
       setAuthStep(2);
-      setTimeout(() => setAuthStep(3), 1000);
+      setTimeout(() => setAuthStep(3), 800);
       setTimeout(() => {
         onLogin();
-      }, 2000);
+      }, 1500);
     } catch (err: any) {
       setError(err.message);
       setIsAuthenticating(false);
@@ -129,7 +138,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
 
               {error && (
-                <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest text-center">{error}</p>
+                <div className={`p-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest text-center ${error.includes('sent') ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-red-500/10 border-red-500/50 text-red-400'}`}>
+                  {error}
+                </div>
               )}
 
               <div className="space-y-4">

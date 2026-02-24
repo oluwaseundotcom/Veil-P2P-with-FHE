@@ -13,6 +13,11 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety timeout for loading state
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -20,6 +25,7 @@ const App: React.FC = () => {
         setUsername(session.user.email?.split('@')[0] || "shadow_operator");
       }
       setLoading(false);
+      clearTimeout(timeout);
     });
 
     // Listen for auth changes
@@ -28,9 +34,13 @@ const App: React.FC = () => {
       if (session?.user) {
         setUsername(session.user.email?.split('@')[0] || "shadow_operator");
       }
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleLogout = async () => {
