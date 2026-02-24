@@ -6,6 +6,7 @@ interface LayoutProps {
   currentView: 'dashboard' | 'architecture';
   onViewChange: (view: 'dashboard' | 'architecture') => void;
   username: string;
+  onLogout: () => void;
 }
 
 const VeilLogo = ({ className }: { className?: string }) => (
@@ -43,7 +44,7 @@ const VeilLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, username }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, username, onLogout }) => {
   const [account] = useState<string>("0x71C2607590022425000000000000000000004f21"); 
   const [network] = useState<string>("Veil Mainnet");
   const [copied, setCopied] = useState(false);
@@ -72,7 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewCha
             </div>
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6">
             <nav className="hidden lg:flex gap-2">
               <button 
                 onClick={() => onViewChange('dashboard')}
@@ -90,31 +91,43 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewCha
 
             <div className="hidden md:block h-8 w-[1px] bg-slate-800"></div>
 
-            <button 
-              onClick={handleCopy}
-              className="flex items-center gap-4 p-2 pl-4 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all group relative"
-            >
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                  {network}
-                </span>
-                <span className="text-xs text-slate-100 font-display font-bold">@{username}</span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-purple-900 shadow-lg group-hover:rotate-6 transition-transform flex items-center justify-center border border-white/10 relative">
-                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
-                 {copied ? (
-                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                 ) : (
-                   <span className="text-[10px] font-black text-white/60">SCA</span>
-                 )}
-              </div>
-              {copied && (
-                <div className="absolute -bottom-10 right-0 bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest animate-in fade-in zoom-in slide-in-from-top-2">
-                  Address Copied
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleCopy}
+                className="flex items-center gap-4 p-2 pl-4 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all group relative"
+              >
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    {network}
+                  </span>
+                  <span className="text-xs text-slate-100 font-display font-bold">@{username}</span>
                 </div>
-              )}
-            </button>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-purple-900 shadow-lg group-hover:rotate-6 transition-transform flex items-center justify-center border border-white/10 relative">
+                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
+                   {copied ? (
+                     <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                   ) : (
+                     <span className="text-[10px] font-black text-white/60">SCA</span>
+                   )}
+                </div>
+                {copied && (
+                  <div className="absolute -bottom-10 right-0 bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest animate-in fade-in zoom-in slide-in-from-top-2">
+                    Address Copied
+                  </div>
+                )}
+              </button>
+
+              <button 
+                onClick={onLogout}
+                className="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-400/10 hover:border-red-400/30 transition-all group"
+                title="Logout"
+              >
+                <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </header>
