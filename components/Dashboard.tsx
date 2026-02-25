@@ -166,10 +166,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
       .single();
 
     if (recipientProfile) {
+      // Update recipient balance
       await supabase
         .from('profiles')
         .update({ balance: Number(recipientProfile.balance) + amountNum })
         .eq('id', recipientProfile.id);
+
+      // Create "In" transaction for recipient
+      const senderHandle = user.email?.split('@')[0] || 'unknown';
+      await supabase.from('transactions').insert([{
+        user_id: recipientProfile.id,
+        type: 'In',
+        amount: txData.amount,
+        from_user: `@${senderHandle}`,
+        memo: 'Encrypted',
+        status: 'Completed'
+      }]);
     }
 
     // 3. Record Transaction

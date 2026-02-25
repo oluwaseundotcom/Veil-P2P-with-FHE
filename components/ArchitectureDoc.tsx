@@ -79,40 +79,63 @@ export const ArchitectureDoc: React.FC = () => {
       </div>
 
       <section className="space-y-8">
-        <h2 className="text-3xl font-display font-black text-slate-100 uppercase tracking-mysterious text-center">Smart Account Logic</h2>
-        <div className="space-y-4">
-          <div className="flex justify-between items-end px-4">
-            <h3 className="text-sm font-mono text-cyan-500 font-bold tracking-widest">// VeilSmartAccount.sol (fhEVM / Passkey)</h3>
-          </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 font-mono text-xs text-slate-400 leading-relaxed overflow-x-auto shadow-inner">
-            <pre className="opacity-90">{`
+        <h2 className="text-3xl font-display font-black text-slate-100 uppercase tracking-mysterious text-center">Smart Contract Infrastructure</h2>
+        
+        <div className="grid grid-cols-1 gap-10">
+          {/* Account Contract */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-end px-4">
+              <h3 className="text-sm font-mono text-cyan-500 font-bold tracking-widest">// VeilSmartAccount.sol (Passkey Auth)</h3>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 font-mono text-xs text-slate-400 leading-relaxed overflow-x-auto shadow-inner">
+              <pre className="opacity-90">{`
 import "fhevm/lib/TFHE.sol";
 import "@account-abstraction/BaseAccount.sol";
 
 contract VeilSmartAccount is BaseAccount {
-    bytes32 public passkeyPublicKey; // X,Y point coordinates
+    bytes32 public passkeyPublicKey;
 
     function _validateSignature(UserOperation calldata userOp, bytes32 userOpHash) 
         internal override returns (uint256 validationData) {
-        
-        // Use WebAuthn P256 verification library
-        bool isValid = WebAuthn.verify(
-            userOpHash,
-            userOp.signature,
-            passkeyPublicKey
-        );
-
-        if (!isValid) return SIG_VALIDATION_FAILED;
-        return 0;
+        // WebAuthn P256 verification logic...
+        return WebAuthn.verify(userOpHash, userOp.signature, passkeyPublicKey) ? 0 : 1;
     }
 
-    // FHE functions restricted to the Passkey signer
     function executeFheTransfer(address to, bytes calldata cipherAmount) public onlyEntryPoint {
         euint64 amount = TFHE.asEuint64(cipherAmount);
         VeilToken.transfer(to, amount);
     }
 }
-            `}</pre>
+              `}</pre>
+            </div>
+          </div>
+
+          {/* Token Contract */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-end px-4">
+              <h3 className="text-sm font-mono text-emerald-500 font-bold tracking-widest">// VeilToken.sol (Confidential TFHE)</h3>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 font-mono text-xs text-slate-400 leading-relaxed overflow-x-auto shadow-inner">
+              <pre className="opacity-90">{`
+import "fhevm/lib/TFHE.sol";
+
+contract VeilToken is EERC20 {
+    mapping(address => euint64) internal _balances;
+
+    function transfer(address to, bytes calldata encryptedAmount) public returns (bool) {
+        euint64 amount = TFHE.asEuint64(encryptedAmount);
+        
+        // Homomorphic subtraction & addition
+        // Validators see NOTHING. Only encrypted state changes.
+        TFHE.optReq(TFHE.le(amount, _balances[msg.sender]));
+        _balances[msg.sender] = TFHE.sub(_balances[msg.sender], amount);
+        _balances[to] = TFHE.add(_balances[to], amount);
+        
+        return true;
+    }
+}
+              `}</pre>
+            </div>
           </div>
         </div>
       </section>
