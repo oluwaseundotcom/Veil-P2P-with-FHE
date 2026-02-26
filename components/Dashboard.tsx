@@ -157,34 +157,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
     await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
     setBalance(newBalance);
 
-    // 2. Add to recipient (if they exist)
-    const recipientHandle = txData.to.replace('@', '');
-    const { data: recipientProfile } = await supabase
-      .from('profiles')
-      .select('id, balance')
-      .eq('username', recipientHandle)
-      .single();
-
-    if (recipientProfile) {
-      // Update recipient balance
-      await supabase
-        .from('profiles')
-        .update({ balance: Number(recipientProfile.balance) + amountNum })
-        .eq('id', recipientProfile.id);
-
-      // Create "In" transaction for recipient
-      const senderHandle = user.email?.split('@')[0] || 'unknown';
-      await supabase.from('transactions').insert([{
-        user_id: recipientProfile.id,
-        type: 'In',
-        amount: txData.amount,
-        from_user: `@${senderHandle}`,
-        memo: 'Encrypted',
-        status: 'Completed'
-      }]);
-    }
-
-    // 3. Record Transaction
+    // 2. Record Transaction (The DB trigger will handle adding to recipient)
     const newTxData = {
       user_id: user.id,
       type: 'Out',
