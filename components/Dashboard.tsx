@@ -51,6 +51,83 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
   useEffect(() => {
     fetchUserData();
+
+    // Realtime Subscriptions
+    let profileSubscription: any;
+    let txSubscription: any;
+
+    const setupSubscriptions = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 1. Listen for Balance Updates
+      profileSubscription = supabase
+        .channel(`profile-updates-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            if (payload.new && payload.new.balance !== undefined) {
+              setBalance(Number(payload.new.balance));
+            }
+          }
+        )
+        .subscribe();
+
+      // 2. Listen for New Transactions
+      txSubscription = supabase
+        .channel(`tx-updates-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'transactions',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            const tx = payload.new;
+            setHistory(prev => [{
+              id: tx.id,
+              type: tx.type,
+              amount: tx.amount,
+              from: tx.from_user,
+              to: tx.recipient,
+              memo: tx.memo,
+              status: tx.status
+            }, ...prev]);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'transactions',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            const updatedTx = payload.new;
+            setHistory(prev => prev.map(tx => tx.id === updatedTx.id ? {
+              ...tx,
+              status: updatedTx.status
+            } : tx));
+          }
+        )
+        .subscribe();
+    };
+
+    setupSubscriptions();
+
+    return () => {
+      if (profileSubscription) supabase.removeChannel(profileSubscription);
+      if (txSubscription) supabase.removeChannel(txSubscription);
+    };
   }, []);
 
   const fetchUserData = async () => {
