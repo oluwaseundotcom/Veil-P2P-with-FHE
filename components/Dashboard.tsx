@@ -45,6 +45,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
   const [loading, setLoading] = useState(true);
 
   const [txData, setTxData] = useState({ to: '', amount: '', memo: '' });
+  const [recipientError, setRecipientError] = useState<string | null>(null);
+  const [isValidatingRecipient, setIsValidatingRecipient] = useState(false);
   const [withdrawData, setWithdrawData] = useState({ bank: '', accountNumber: '', amount: '' });
   const [isProcessing, setIsProcessing] = useState(false);
   const [fheExplain, setFheExplain] = useState("");
@@ -217,6 +219,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Final validation check
+    const recipientHandle = txData.to.replace('@', '');
+    setIsValidatingRecipient(true);
+    const { data: recipientProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', recipientHandle)
+      .single();
+    setIsValidatingRecipient(false);
+
+    if (!recipientProfile) {
+      setRecipientError("Recipient handle not found in database");
+      return;
+    }
+
     const amountNum = Number(txData.amount);
     if (amountNum > balance) {
       alert("Insufficient balance");
@@ -571,22 +589,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
               <form onSubmit={handleSend} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-mysterious">Recipient @Username</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-mysterious">Recipient @Username</label>
+                      {txData.to && !txData.to.startsWith('@') && (
+                        <span className="text-[9px] text-amber-500 font-bold animate-pulse">💡 Include "@" prefix</span>
+                      )}
+                    </div>
                     <input 
                       type="text" 
                       value={txData.to}
-                      onChange={e => setTxData({...txData, to: e.target.value})}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setTxData({...txData, to: val});
+                        setRecipientError(null);
+                      }}
+                      onBlur={async () => {
+                        if (txData.to.length > 1) {
+                          const handle = txData.to.replace('@', '');
+                          setIsValidatingRecipient(true);
+                          const { data } = await supabase.from('profiles').select('id').eq('username', handle).single();
+                          if (!data) setRecipientError("User not found");
+                          setIsValidatingRecipient(false);
+                        }
+                      }}
                       placeholder="@handle" 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium"
+                      className={`w-full bg-slate-950 border ${recipientError ? 'border-red-500/50' : 'border-slate-800'} rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium`}
                       required
                     />
+                    {recipientError && <p className="text-[10px] text-red-400 font-medium px-1">{recipientError}</p>}
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-mysterious">Amount (cUSDT)</label>
                     <input 
                       type="number" 
                       value={txData.amount}
-                      onChange={e => setTxData({...txData, amount: e.target.value})}
+                      onChange={e => {
+                        setTxData({...txData, amount: e.target.value});
+                        if (recipientError === "User not found") {
+                          // Re-check if user exists when they start typing amount to be sure
+                        }
+                      }}
                       placeholder="0.00" 
                       className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium"
                       required
