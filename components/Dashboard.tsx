@@ -96,15 +96,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
           },
           (payload) => {
             const tx = payload.new;
-            setHistory(prev => [{
-              id: tx.id,
-              type: tx.type,
-              amount: tx.amount,
-              from: tx.from_user,
-              to: tx.recipient,
-              memo: tx.memo,
-              status: tx.status
-            }, ...prev]);
+            setHistory(prev => {
+              // Prevent duplicates
+              if (prev.some(t => t.id === tx.id)) return prev;
+              
+              return [{
+                id: tx.id,
+                type: tx.type,
+                amount: tx.amount,
+                from: tx.from_user,
+                to: tx.recipient,
+                memo: tx.memo,
+                status: tx.status
+              }, ...prev];
+            });
           }
         )
         .on(
@@ -156,7 +161,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
       .order('created_at', { ascending: false });
 
     if (txs) {
-      setHistory(txs.map((tx: any) => ({
+      const formattedTxs = txs.map((tx: any) => ({
         id: tx.id,
         type: tx.type,
         amount: tx.amount,
@@ -164,7 +169,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
         to: tx.recipient,
         memo: tx.memo,
         status: tx.status
-      })));
+      }));
+      
+      setHistory(prev => {
+        // Merge and remove duplicates by ID
+        const combined = [...formattedTxs, ...prev];
+        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        return unique.sort((a, b) => b.id - a.id);
+      });
     }
     setLoading(false);
   };
@@ -271,14 +283,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
     if (data) {
       const insertedTx = data[0];
-      setHistory(prev => [{ 
-        id: insertedTx.id, 
-        type: insertedTx.type, 
-        amount: insertedTx.amount, 
-        to: insertedTx.recipient, 
-        memo: insertedTx.memo, 
-        status: insertedTx.status 
-      }, ...prev]);
       startStatusFlow(insertedTx.id);
     }
     
@@ -320,14 +324,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
     if (data) {
       const insertedTx = data[0];
-      setHistory(prev => [{ 
-        id: insertedTx.id, 
-        type: insertedTx.type, 
-        amount: insertedTx.amount, 
-        to: insertedTx.recipient, 
-        memo: insertedTx.memo, 
-        status: insertedTx.status 
-      }, ...prev]);
       startStatusFlow(insertedTx.id);
     }
 
@@ -375,16 +371,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
         console.error('Error saving transaction:', error);
       } else if (data) {
         const insertedTx = data[0];
-        const newTx: Transaction = { 
-          id: insertedTx.id, 
-          type: insertedTx.type, 
-          amount: insertedTx.amount, 
-          from: insertedTx.from_user, 
-          memo: insertedTx.memo, 
-          status: insertedTx.status 
-        };
-        
-        setHistory(prev => [newTx, ...prev]);
         startStatusFlow(insertedTx.id);
       }
     }
