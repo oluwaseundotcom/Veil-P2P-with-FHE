@@ -169,7 +169,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               <div className="space-y-2">
                 <p className="text-white font-display font-bold text-sm tracking-widest uppercase">
-                  {authStep === 1 && "Connecting to Supabase..."}
+                  {authStep === 1 && <span className="animate-pulse text-indigo-400">Privacy by default</span>}
                   {authStep === 2 && "Verifying Credentials..."}
                   {authStep === 3 && "Vault Sync Successful"}
                 </p>

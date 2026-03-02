@@ -46,8 +46,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
   const [txData, setTxData] = useState({ to: '', amount: '', memo: '' });
   const [recipientError, setRecipientError] = useState<string | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
   const [isValidatingRecipient, setIsValidatingRecipient] = useState(false);
   const [withdrawData, setWithdrawData] = useState({ bank: '', accountNumber: '', amount: '' });
+  const [withdrawBalanceError, setWithdrawBalanceError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fheExplain, setFheExplain] = useState("");
 
@@ -237,7 +239,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
     const amountNum = Number(txData.amount);
     if (amountNum > balance) {
-      alert("Insufficient balance");
+      setBalanceError("insufficient balance 😂");
       return;
     }
 
@@ -290,7 +292,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
     e.preventDefault();
     const amountNum = Number(withdrawData.amount);
     if (amountNum > balance) {
-      alert("Insufficient balance");
+      setWithdrawBalanceError("insufficient balance 😂");
       return;
     }
 
@@ -624,15 +626,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
                       type="number" 
                       value={txData.amount}
                       onChange={e => {
-                        setTxData({...txData, amount: e.target.value});
-                        if (recipientError === "User not found") {
-                          // Re-check if user exists when they start typing amount to be sure
+                        const val = e.target.value;
+                        setTxData({...txData, amount: val});
+                        if (Number(val) > balance) {
+                          setBalanceError("insufficient balance 😂");
+                        } else {
+                          setBalanceError(null);
                         }
                       }}
                       placeholder="0.00" 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium"
+                      className={`w-full bg-slate-950 border ${balanceError ? 'border-red-500/50' : 'border-slate-800'} rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all font-medium`}
                       required
                     />
+                    {balanceError && <p className="text-[10px] text-red-400 font-medium px-1">{balanceError}</p>}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -686,15 +692,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
                        <input 
                         type="number" 
                         value={withdrawData.amount}
-                        onChange={e => setWithdrawData({...withdrawData, amount: e.target.value})}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setWithdrawData({...withdrawData, amount: val});
+                          if (Number(val) > balance) {
+                            setWithdrawBalanceError("insufficient balance 😂");
+                          } else {
+                            setWithdrawBalanceError(null);
+                          }
+                        }}
                         placeholder="0.00" 
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium"
+                        className={`w-full bg-slate-950 border ${withdrawBalanceError ? 'border-red-500/50' : 'border-slate-800'} rounded-2xl px-5 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium`}
                         required
                       />
                       <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-display font-bold text-emerald-500 tracking-mysterious">
                          ₦{(Number(withdrawData.amount || 0) * 1550).toLocaleString()} NGN
                       </div>
                     </div>
+                    {withdrawBalanceError && <p className="text-[10px] text-red-400 font-medium px-1">{withdrawBalanceError}</p>}
                 </div>
                 <button 
                   disabled={isProcessing}
