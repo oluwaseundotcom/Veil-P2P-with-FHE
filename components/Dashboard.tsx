@@ -283,6 +283,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
     if (data) {
       const insertedTx = data[0];
+      // Instant feedback: manually add to history
+      setHistory(prev => {
+        if (prev.some(t => t.id === insertedTx.id)) return prev;
+        return [{ 
+          id: insertedTx.id, 
+          type: insertedTx.type, 
+          amount: insertedTx.amount, 
+          to: insertedTx.recipient, 
+          memo: insertedTx.memo, 
+          status: insertedTx.status 
+        }, ...prev];
+      });
       startStatusFlow(insertedTx.id);
     }
     
@@ -324,6 +336,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
     if (data) {
       const insertedTx = data[0];
+      // Instant feedback: manually add to history
+      setHistory(prev => {
+        if (prev.some(t => t.id === insertedTx.id)) return prev;
+        return [{ 
+          id: insertedTx.id, 
+          type: insertedTx.type, 
+          amount: insertedTx.amount, 
+          to: insertedTx.recipient, 
+          memo: insertedTx.memo, 
+          status: insertedTx.status 
+        }, ...prev];
+      });
       startStatusFlow(insertedTx.id);
     }
 
@@ -371,6 +395,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
         console.error('Error saving transaction:', error);
       } else if (data) {
         const insertedTx = data[0];
+        // Instant feedback: manually add to history
+        setHistory(prev => {
+          if (prev.some(t => t.id === insertedTx.id)) return prev;
+          return [{ 
+            id: insertedTx.id, 
+            type: insertedTx.type, 
+            amount: insertedTx.amount, 
+            from: insertedTx.from_user, 
+            memo: insertedTx.memo, 
+            status: insertedTx.status 
+          }, ...prev];
+        });
         startStatusFlow(insertedTx.id);
       }
     }
